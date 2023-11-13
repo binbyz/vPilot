@@ -24,30 +24,59 @@ export default class Godomall extends Pilot {
     return this;
   }
 
-  getCurrentPageUrl() {
+  getCurrentPageUrl(page = undefined) {
+    page = page || this.#page;
+
     return `${this.host}goods/goods_list.php?page=${this.#page}&cateCd=${this.cateCd}`;
   }
 
+  getReferer() {
+    return this.#page === 1 
+      ? this.host 
+      : this.getCurrentPageUrl(this.#page - 1);
+  }
+
   async getListItems() {
-    const response = await super.getHtml(this.getCurrentPageUrl(), this.host);
+    const response = await super.getHtml(this.getCurrentPageUrl(), this.getReferer());
 
     return cheerio.load(response);
   }
 
   async run() {
-    const nextPageReferer = this.getCurrentPageUrl();
-
     const $ = await this.getListItems();
-    const $itemInfoContent = $('.goods_list .item_info_cont');
+    const $goodsList = $('#goodslist ul.goods_product_list > li');
     
-    if ($itemInfoContent.length === 0) {
-      return true; // end page
+    if ($goodsList.length === 1 && $goodsList.eq(0).hasClass('no_bx')) {
+      return false; // end page
     }
 
-    const $itemAnchors = $('.goods_list .item_tit_box a'); // goodsNo
-    const $itemNames = $('.goods_list .item_name'); // item_name
-    const $itemPrices = $('.goods_list .item_price'); // item price
-    
-    console.log($itemAnchors.length, $itemNames.length, $itemPrices.length)
+    const $itemAnchors = $goodsList.find('.goods_prd_content a');
+    const $itemNames = $goodsList.find('.goods_prd_content .prd_name');
+    const $itemPrices = $goodsList.find('.goods_prd_content .c_price');
+
+    for (let index = 0; index < $goodsList.length; index++) {
+      const href = $itemAnchors.eq(index).attr('href');
+      const goodsName = $itemNames.eq(index).text().trim();
+      const priceText = $itemPrices.eq(index).text().trim();
+
+      const goodsNo = this.#extractGoodsNoFromHref(href);
+      const price = this.#extractProceFromText(priceText);
+    }
+
+    console.log(`[${this.#page}] ${$goodsList.length} items crawled.`);
+
+    this.nextPage();
+
+    return true;
+  }
+
+  #extractGoodsNoFromHref(href) {
+    return Number(href.match(/goodsNo=(\d+)/)[1]);
+  }
+
+  #extractProceFromText(text) {
+    text = text.replace(',', '').replace('원', '');
+
+    return Number(text);
   }
 }
