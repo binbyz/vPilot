@@ -12,8 +12,16 @@ export default class Godomall extends Pilot {
   constructor(options) {
     super();
 
-    this.host = String(options.host).trimEnd('/') + '/';
+    let host = String(options.host);
+
+    this.host = host.endsWith('/') ? host : host + '/';
     this.cateCd = String(options.cateCd).trim();
+
+    return this;
+  }
+
+  initializePage() {
+    this.#page = 1;
 
     return this;
   }
@@ -61,9 +69,19 @@ export default class Godomall extends Pilot {
 
       const goodsNo = this.#extractGoodsNoFromHref(href);
       const price = this.#extractProceFromText(priceText);
-    }
 
-    console.log(`[${this.#page}] ${$goodsList.length} items crawled.`);
+      Pilot.logger.info(`host:${this.host}, cateCd: ${this.cateCd}, page:${this.#page}, price:${priceText}, goodsNo: ${goodsNo}, product:${goodsName}`);
+
+      this.sendWebSocketMessage({
+        time: Date.now(),
+        host: this.host,
+        cateCd: this.cateCd,
+        page: this.#page,
+        price,
+        goodsNo,
+        goodsName,
+      });
+    }
 
     this.nextPage();
 

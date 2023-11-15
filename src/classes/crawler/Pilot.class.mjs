@@ -1,8 +1,14 @@
 import axios from "axios";
+import pino from "pino";
+import pretty from "pino-pretty"
+import WebSocket from "ws";
 
 export default class Pilot {
   #axios;
   #referer;
+  #wsServer;
+
+  static logger;
 
   constructor() {
     this.#axios = axios.create({
@@ -15,6 +21,36 @@ export default class Pilot {
         "User-Agent": this.getHumanUserAgent(),
       },
     });
+
+    Pilot.logger = pino(pretty({
+      colorize: true,
+      translateTime: true,
+      ignore: "hostname,pid",
+    }));
+  }
+
+  attachWebSockerServer(wsServer) {
+    this.#wsServer = wsServer;
+
+    return this;
+  }
+
+  sendWebSocketMessage(data) {
+    this.#wsServer.clients.forEach(client => {
+      if (client.readyState === WebSocket.OPEN) {
+        client.send({
+          type: "pilot",
+          timestamp: Date.now(),
+          data: {
+            host: this.host,
+            url: this.getCurrentPageUrl(),
+            ...data,
+          },
+        });
+      }
+    });
+
+    return this;
   }
 
   async getHtml(url, referer = undefined) {
@@ -72,12 +108,24 @@ export default class Pilot {
     do {
       result = await this.run();
 
-      await this.randomSleepInTenSeconds(1000);
-    } while (result);
+      if (!result) {
+        this.initializePage();
+        
+        await this.randomSleepIn10Minutes();
+      } else {
+        await this.randomSleepIn20Seconds();
+      }
+    } while (true);
   }
 
-  async randomSleepInTenSeconds() {
-    const ms = Math.random() * 9000 + 1000;
+  async randomSleepIn20Seconds() {
+    const ms = Math.random() * 20000 + 1000;
+
+    return new Promise(resolve => setTimeout(resolve, ms));
+  }
+
+  async randomSleepIn10Minutes() {
+    const ms = Math.random() * 600000 + 60000;
 
     return new Promise(resolve => setTimeout(resolve, ms));
   }
