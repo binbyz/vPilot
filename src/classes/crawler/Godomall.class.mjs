@@ -68,7 +68,7 @@ export default class Godomall extends Pilot {
       const priceText = $itemPrices.eq(index).text().trim();
 
       const goodsNo = this.#extractGoodsNoFromHref(href);
-      const price = this.#extractProceFromText(priceText);
+      const price = this.#extractPriceFromText(priceText);
 
       Pilot.logger.info(`host:${this.host}, cateCd: ${this.cateCd}, page:${this.#page}, price:${priceText}, goodsNo: ${goodsNo}, product:${goodsName}`);
 
@@ -92,7 +92,7 @@ export default class Godomall extends Pilot {
     return Number(href.match(/goodsNo=(\d+)/)[1]);
   }
 
-  #extractProceFromText(text) {
+  #extractPriceFromText(text) {
     text = text.replace(',', '').replace('원', '');
 
     return Number(text);
